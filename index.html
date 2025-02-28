@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Image Storage</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        text-align: center;
+        background: #f4f4f4;
+      }
+
+      .container {
+        max-width: 800px;
+        margin: auto;
+        padding: 20px;
+      }
+
+      input,
+      button {
+        width: 80%;
+        padding: 10px;
+        margin-bottom: 10px;
+      }
+
+      button {
+        background-color: #007bff;
+        color: white;
+        border: none;
+        cursor: pointer;
+      }
+
+      button:hover {
+        background-color: #0056b3;
+      }
+
+      #gallery {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: 10px;
+        margin-top: 20px;
+      }
+
+      img {
+        width: 100%;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: transform 0.2s;
+      }
+
+      img:hover {
+        transform: scale(1.05);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Upload & Store Images</h1>
+
+      <input type="file" id="imageInput" multiple />
+      <button onclick="uploadImages()">Upload</button>
+
+      <input
+        type="text"
+        id="searchInput"
+        placeholder="Search images..."
+        onkeyup="searchImages()"
+      />
+
+      <div id="gallery"></div>
+    </div>
+    <script>
+      const GITHUB_USERNAME = "your-github-username";
+      const REPO_NAME = "your-repository-name";
+      const TOKEN = "your-github-personal-access-token"; // ⚠️ Store securely! Never expose this in public code.
+
+      let images = []; // Store uploaded image names
+
+      async function uploadImages() {
+        const input = document.getElementById("imageInput");
+        const files = input.files;
+
+        if (files.length === 0) {
+          alert("Please select at least one image.");
+          return;
+        }
+
+        for (let file of files) {
+          const reader = new FileReader();
+          reader.readAsDataURL(file);
+          reader.onload = async function () {
+            const base64Data = reader.result.split(",")[1];
+            const fileName = file.name.replace(/\s+/g, "-"); // Remove spaces
+
+            const url = `https://api.github.com/repos/${GITHUB_USERNAME}/${REPO_NAME}/contents/${fileName}`;
+
+            const response = await fetch(url, {
+              method: "PUT",
+              headers: {
+                Authorization: `token ${TOKEN}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                message: `Uploaded ${fileName}`,
+                content: base64Data,
+              }),
+            });
+
+            if (response.ok) {
+              images.push(fileName);
+              alert(`Uploaded: ${fileName}`);
+              loadImages(); // Refresh gallery
+            } else {
+              alert("Upload failed!");
+            }
+          };
+        }
+      }
+
+      function loadImages() {
+        document.getElementById("gallery").innerHTML = "";
+        images.forEach((image) => {
+          const imgElement = document.createElement("img");
+          imgElement.src = `https://raw.githubusercontent.com/${GITHUB_USERNAME}/${REPO_NAME}/main/${image}`;
+          imgElement.alt = image;
+          imgElement.onclick = () => copyToClipboard(imgElement.src);
+          document.getElementById("gallery").appendChild(imgElement);
+        });
+      }
+
+      function searchImages() {
+        const query = document
+          .getElementById("searchInput")
+          .value.toLowerCase();
+        const filteredImages = images.filter((image) =>
+          image.toLowerCase().includes(query)
+        );
+
+        document.getElementById("gallery").innerHTML = "";
+        filteredImages.forEach((image) => {
+          const imgElement = document.createElement("img");
+          imgElement.src = `https://raw.githubusercontent.com/${GITHUB_USERNAME}/${REPO_NAME}/main/${image}`;
+          imgElement.alt = image;
+          imgElement.onclick = () => copyToClipboard(imgElement.src);
+          document.getElementById("gallery").appendChild(imgElement);
+        });
+      }
+
+      function copyToClipboard(url) {
+        navigator.clipboard
+          .writeText(url)
+          .then(() => alert("Image URL copied!"));
+      }
+
+      // Load existing images on page load
+      window.onload = loadImages;
+    </script>
+  </body>
+</html>
